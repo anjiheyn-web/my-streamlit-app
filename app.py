@@ -23,7 +23,7 @@ if "messages" not in st.session_state:
 
 # 지시 영역
 with st.form("task_form"):
-    uploaded_file = st.file_uploader("텍스트 파일 업로드", type=["txt"])
+    uploaded_file = st.file_uploader("음성 파일 업로드", type=["m4a"])
     audio_value = st.audio_input("무엇을 도와드릴까요?")
     submit = st.form_submit_button("실행")
 
