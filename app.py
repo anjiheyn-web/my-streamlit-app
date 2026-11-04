@@ -6,8 +6,8 @@ from openai import OpenAI
 client = OpenAI()
 
 # 페이지 설정
-st.set_page_config(page_title="🤖음성 AI 서비스", page_icon="🤖", layout="wide")
-st.title("🤖음성 인식 AI 서비스")
+st.set_page_config(page_title="음성 AI 서비스", page_icon="🤖", layout="wide")
+st.title("🤖 음성 인식 AI 서비스")
 st.write("음성 파일 업로드 또는 마이크로 녹음하여 질문하시면 답변해 드립니다.")
 
 # 역할 지정
