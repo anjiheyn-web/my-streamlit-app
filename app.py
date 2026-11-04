@@ -304,10 +304,13 @@ def calculate_priorities(tasks, briefing_date, weights):
         else:
             deadline_label = f"마감까지 {days_left}일"
         
+        priority_reason = f"중요도 {task['importance']}, 긴급도 {effective_urgency}, 선행영향 {blocking_score}"
+
         ranked.append({
             **task,
             "score": score,
             "deadline_label": deadline_label,
+            "priority_reason": priority_reason,
         })
     ranked.sort(
         key=lambda task: (
@@ -333,7 +336,7 @@ def choose_today_tasks(ranked_tasks, briefing_date, count):
     return due_today + remaining[:max(0, count - len(due_today))]
 
 # =========================================================
-# 7. 순위별 핵심 업무 & 세부 브리핑 생성 (수정된 부분)
+# 7. 순위별 핵심 업무 & 세부 브리핑 생성
 # =========================================================
 def create_report(briefing_date, count, weights):
     state = st.session_state
@@ -356,7 +359,7 @@ def create_report(briefing_date, count, weights):
     else:
         for index, task in enumerate(today_tasks, 1):
             lines.extend([
-                f"### {index순위}순위 업무: **{task['title']}** ({task['deadline_label']})",
+                f"### {index}순위 업무: **{task['title']}** ({task['deadline_label']})",
                 f"- **상세 내용**: {task['detail']}",
                 f"- **담당 구분**: {task['ownership']} (담당자: {task['owner'] or '미정'})",
                 f"- **세부 실행 가이드**: ",
@@ -598,244 +601,3 @@ elif st.session_state.step == 2:
                 "status": st.column_config.SelectboxColumn(
                     "상태", options=STATUSES, required=True
                 ),
-            },
-        )
-
-        st.markdown("#### 결정이 필요한 사항")
-        decision_df = pd.DataFrame(
-            st.session_state.decisions,
-            columns=DECISION_COLUMNS,
-        )
-        decision_df["due_date"] = decision_df["due_date"].fillna("")
-        edited_decisions = st.data_editor(
-            decision_df,
-            hide_index=True,
-            use_container_width=True,
-            disabled=["evidence"],
-            key=f"decision_editor_{version}",
-            column_config={
-                "topic": st.column_config.TextColumn("결정할 사항", required=True),
-                "owner": st.column_config.TextColumn("결정 담당자"),
-                "ownership": st.column_config.SelectboxColumn(
-                    "담당 구분", options=OWNERSHIPS, required=True
-                ),
-                "due_date": st.column_config.TextColumn(
-                    "결정 기한", help="YYYY-MM-DD 형식, 미정이면 빈칸"
-                ),
-                "options": st.column_config.TextColumn("선택지·필요 정보"),
-                "evidence": st.column_config.TextColumn("원문 근거"),
-            },
-        )
-
-        save_review = st.form_submit_button(
-            "확인 완료 · 우선순위 설정으로 →",
-            type="primary",
-        )
-
-    if save_review:
-        try:
-            checked_tasks = []
-            for row in edited_tasks.to_dict("records"):
-                row["due_date"] = (
-                    str(row["due_date"]).strip()
-                    if row["due_date"]
-                    else None
-                )
-                task = Task.model_validate({
-                    key: row[key] for key in Task.model_fields
-                })
-                if not task.title.strip():
-                    raise ValueError("업무 이름은 비워둘 수 없습니다.")
-                if row["status"] not in STATUSES:
-                    raise ValueError("업무 상태를 확인해주세요.")
-                checked_tasks.append({
-                    **task.model_dump(),
-                    "status": row["status"],
-                })
-
-            checked_decisions = []
-            for row in edited_decisions.to_dict("records"):
-                row["due_date"] = (
-                    str(row["due_date"]).strip()
-                    if row["due_date"]
-                    else None
-                )
-                checked_decisions.append(
-                    Decision.model_validate(row).model_dump()
-                )
-
-            if not edited_title.strip():
-                raise ValueError("회의록 제목을 입력해주세요.")
-
-            analysis.title = edited_title.strip()
-            analysis.summary = edited_summary.strip()
-            analysis.confirmed_decisions = [
-                line.strip()
-                for line in edited_confirmed.splitlines()
-                if line.strip()
-            ]
-
-            st.session_state.tasks = checked_tasks
-            st.session_state.decisions = checked_decisions
-            st.session_state.ranked_tasks = []
-            st.session_state.ranking_signature = None
-            st.session_state.report = ""
-            st.session_state.version += 1
-            move_step(3)
-        except Exception as error:
-            st.error(f"입력값을 확인해주세요: {error}")
-
-    if st.button("← 자료 입력으로"):
-        move_step(1)
-
-# =========================================================
-# STEP 3. 업무 우선순위 재계산
-# =========================================================
-elif st.session_state.step == 3:
-    st.subheader("📊 업무 우선순위 재계산")
-    st.write(
-        "내 업무와 공동 업무 중 완료되지 않은 업무를 계산합니다. "
-        "AI가 제안한 점수에 기한과 아래 계산 비중을 반영합니다."
-    )
-
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        importance_weight = st.slider(
-            "중요도 비중", 0, 10, 5, key="importance_weight"
-        )
-    with col2:
-        urgency_weight = st.slider(
-            "긴급도 비중", 0, 10, 4, key="urgency_weight"
-        )
-    with col3:
-        blocking_weight = st.slider(
-            "선행 업무 영향 비중", 0, 10, 2, key="blocking_weight"
-        )
-
-    briefing_date = st.date_input(
-        "오늘 할 일 브리핑 기준일",
-        value=TODAY,
-        key="briefing_date",
-    )
-    today_count = st.number_input(
-        "오늘 추천할 업무 수",
-        min_value=1,
-        max_value=20,
-        value=3,
-        key="today_count",
-    )
-
-    st.caption(
-        "기한 초과·오늘 마감 업무는 추천 개수와 관계없이 모두 표시됩니다. "
-        "오늘의 업무는 실행 제안이며 확정된 일정은 아닙니다."
-    )
-
-    weights = (
-        importance_weight,
-        urgency_weight,
-        blocking_weight,
-    )
-    signature = (
-        weights,
-        briefing_date.isoformat(),
-        int(today_count),
-    )
-
-    if st.button("🔄 우선순위 재계산", type="primary"):
-        try:
-            st.session_state.ranked_tasks = calculate_priorities(
-                st.session_state.tasks,
-                briefing_date,
-                weights,
-            )
-            st.session_state.ranking_signature = signature
-            st.session_state.report = ""
-        except Exception as error:
-            st.error(str(error))
-
-    ranking_is_current = (
-        st.session_state.ranking_signature == signature
-    )
-
-    if ranking_is_current:
-        ranked_tasks = st.session_state.ranked_tasks
-        if ranked_tasks:
-            ranking_df = pd.DataFrame([
-                {
-                    "순위": task["rank"],
-                    "업무": task["title"],
-                    "담당": task["ownership"],
-                    "기한": task["due_date"] or "미정",
-                    "점수": task["score"],
-                    "계산 근거": task["priority_reason"],
-                }
-                for task in ranked_tasks
-            ])
-            st.dataframe(
-                ranking_df,
-                hide_index=True,
-                use_container_width=True,
-            )
-            st.markdown("#### 오늘 할 일 미리보기")
-            for index, task in enumerate(
-                choose_today_tasks(
-                    ranked_tasks, briefing_date, int(today_count)
-                ),
-                1,
-            ):
-                st.write(
-                    f"{index}. **{task['title']}** — "
-                    f"{task['deadline_label']}"
-                )
-        else:
-            st.info(
-                "현재 진행할 내 업무·공동 업무가 없습니다. "
-                "앞 단계에서 담당 구분과 완료 상태를 확인해주세요."
-            )
-    else:
-        st.info("설정을 확인한 뒤 '우선순위 재계산'을 눌러주세요.")
-
-    col1, col2 = st.columns(2)
-    with col1:
-        if st.button("← 업무 추출 결과 수정"):
-            move_step(2)
-    with col2:
-        if st.button(
-            "순위별 세부 브리핑 생성 →",
-            type="primary",
-            disabled=not ranking_is_current,
-        ):
-            st.session_state.report = create_report(
-                briefing_date,
-                int(today_count),
-                weights,
-            )
-            move_step(4)
-
-# =========================================================
-# STEP 4. 순위별 세부 브리핑 확인
-# =========================================================
-elif st.session_state.step == 4:
-    st.subheader("📝 순위별 핵심 업무 및 세부 실행 가이드")
-    
-    with st.container(height=650):
-        st.markdown(st.session_state.report)
-
-    col1, col2 = st.columns(2)
-    with col1:
-        st.download_button(
-            "📄 브리핑 TXT 다운로드",
-            data=st.session_state.report.encode("utf-8-sig"),
-            file_name="에이블_AI_세부브리핑.txt",
-            mime="text/plain",
-        )
-    with col2:
-        st.download_button(
-            "📝 Markdown 다운로드",
-            data=st.session_state.report.encode("utf-8"),
-            file_name="에이블_AI_세부브리핑.md",
-            mime="text/markdown",
-        )
-
-    if st.button("← 우선순위 다시 설정"):
-        move_step(3)
