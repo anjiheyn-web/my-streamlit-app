@@ -302,7 +302,7 @@ def calculate_priorities(tasks, briefing_date, weights):
             deadline_label = "오늘 마감"
         else:
             deadline_label = f"마감까지 {days_left}일"
-        
+
         priority_reason = f"중요도 {task['importance']}, 긴급도 {effective_urgency}, 선행영향 {blocking_score}"
 
         ranked.append({
@@ -340,7 +340,7 @@ def choose_today_tasks(ranked_tasks, briefing_date, count):
 def create_report(briefing_date, count, weights):
     state = st.session_state
     today_tasks = choose_today_tasks(state.ranked_tasks, briefing_date, count)
-    
+
     lines = [
         "# 🎯 맞춤형 일일 업무 브리핑",
         "",
@@ -352,7 +352,7 @@ def create_report(briefing_date, count, weights):
         "## 📋 순위별 핵심 업무 및 세부 실행 가이드",
         ""
     ]
-    
+
     if not today_tasks:
         lines.append("현재 진행할 내 업무 또는 공동 업무가 없습니다.")
     else:
@@ -365,7 +365,7 @@ def create_report(briefing_date, count, weights):
                 f"  - 원문 근거(`{task['evidence']}`)를 바탕으로 해당 업무를 즉시 처리하거나 관련 담당자에게 필요한 정보 및 협조를 요청하세요.",
                 ""
             ])
-            
+
     return "\n".join(lines)
 
 # =========================================================
@@ -819,7 +819,7 @@ elif st.session_state.step == 3:
 # =========================================================
 elif st.session_state.step == 4:
     st.subheader("📝 순위별 핵심 업무 및 세부 실행 가이드")
-    
+
     with st.container(height=650):
         st.markdown(st.session_state.report)
 
