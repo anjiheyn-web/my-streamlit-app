@@ -28,11 +28,6 @@ with st.form("task_form"):
     submit = st.form_submit_button("실행")
 
 # 버튼을 눌렀을 때만 실행
-if submit:
-    # 업로드 된 파일이 있으면 디코딩
-    text = ""
-    if uploaded_file is not None:
-        text = uploaded_file.read().decode("utf-8")
 
     # 녹음이 없으면 녹음 요청
     if audio_value is None:
