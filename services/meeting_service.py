@@ -34,25 +34,23 @@ ANALYSIS_SCHEMA = {
 }
 
 
-def analyze_meeting(client, model, meeting_text, image_bytes, image_mime):
-    """하나의 Responses API 호출에서 텍스트와 이미지를 함께 분석."""
-    if not meeting_text.strip():
-        raise ValueError('내용이 있는 TXT 회의록을 업로드해 주세요.')
-    if not image_bytes:
-        raise ValueError('화이트보드 사진을 업로드해 주세요.')
-    if image_mime not in ('image/png', 'image/jpeg'):
-        raise ValueError('화이트보드 이미지는 PNG 또는 JPG만 지원합니다.')
-
-    encoded = base64.b64encode(image_bytes).decode('ascii')
-    content = [
-        {'type': 'input_text', 'text': (
-            f'오늘 날짜: {date.today().isoformat()}\n'
-            '아래 텍스트와 첨부된 화이트보드 이미지를 함께 분석하세요. '
-            '날짜는 반드시 회의 자료에 근거해야 합니다.\n\n'
-            '[회의록]\n' + meeting_text
-        )},
-        {'type': 'input_image', 'image_url': f'data:{image_mime};base64,{encoded}', 'detail': 'high'},
-    ]
+def analyze_meeting(client, model, meeting_text='', image_bytes=None, image_mime=None):
+    """TXT·회의 음성 전사·화이트보드를 선택적으로 함께 분석합니다."""
+    if not (meeting_text or '').strip() and not image_bytes:
+        raise ValueError('회의록, 회의 녹음 또는 화이트보드 중 한 가지 이상 필요합니다.')
+    content = [{'type': 'input_text', 'text': (
+        f'오늘 날짜: {date.today().isoformat()}\n'
+        '아래 회의록/녹음 전사와 화이트보드 자료를 종합 분석하세요. '
+        '녹음 전사에는 음성 인식 오류가 있을 수 있으니 불확실한 내용은 표시하세요. '
+        '날짜와 담당 업무는 반드시 자료에 근거하세요.\n\n'
+        '[회의 자료 원문]\n' + (meeting_text or '(텍스트 없음)')
+    )}]
+    if image_bytes:
+        if image_mime not in ('image/png', 'image/jpeg'):
+            raise ValueError('화이트보드 이미지는 PNG 또는 JPG만 지원합니다.')
+        encoded = base64.b64encode(image_bytes).decode('ascii')
+        content.append({'type': 'input_image',
+                        'image_url': f'data:{image_mime};base64,{encoded}', 'detail': 'high'})
     response = client.responses.create(
         model=model,
         instructions=MEETING_INSTRUCTIONS,
