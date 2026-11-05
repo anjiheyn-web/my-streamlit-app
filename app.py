@@ -28,19 +28,13 @@ ASSET_DIR = Path(__file__).resolve().parent / 'assets'
 MAIN_IMAGE = ASSET_DIR / 'assistant_main.png'
 SIDE_IMAGE = ASSET_DIR / 'assistant_side.png'
 
-# Streamlit 공식 테마를 단일 진실 공급원으로 사용합니다.
-# 앱의 오른쪽 위 메뉴 → Settings → Theme에서 Light / Dark를 전환합니다.
-# 고정된 다크 색상이나 CSS 기반 가짜 테마 전환은 기본 위젯과 충돌합니다.
-
 st.markdown("""<style>
-/* AIVLE Ⅺ: native Streamlit theme colors, no hardcoded light/dark surface colors. */
 .block-container {max-width: 1040px; padding-top: 1.35rem; padding-bottom: 3rem;}
 .stApp h1, .stApp h2, .stApp h3 {letter-spacing: -.04em;}
 .stApp h1 {font-size: 1.72rem !important;}
 .stApp h2, .stApp h3 {font-size: 1.26rem !important;}
 [data-testid="stVerticalBlockBorderWrapper"] > div {border-radius: 14px;}
 [data-testid="stMetric"] {border: 1px solid var(--border-color, #8995a3); border-radius: 12px; padding: .8rem 1rem;}
-/* Only the navigation group: don't accidentally restyle uploader, settings or other buttons. */
 [data-testid="stSidebar"] .st-key-aivle_nav [data-testid="stVerticalBlock"] {gap: .12rem !important;}
 [data-testid="stSidebar"] .st-key-aivle_nav [data-testid="stButton"] {margin: 0 !important;}
 [data-testid="stSidebar"] .st-key-aivle_nav [data-testid="stButton"] button {
@@ -61,8 +55,6 @@ st.markdown("""<style>
 [data-testid="stSidebar"] .st-key-aivle_nav [data-testid="stButton"] button svg {
     flex-shrink: 0 !important; color: currentColor !important;
 }
-/* Lightweight Google-style search hero and mascot speech bubble. */
-/* Center the brand and mascot in a restrained homepage hero. */
 .st-key-home_hero {max-width: 740px; margin: 7vh auto 1.4rem; padding: .3rem .2rem; text-align: center;}
 .st-key-home_hero .aivle-home-wordmark {text-align:center !important; font-size: clamp(2.7rem, 6vw, 4.2rem) !important; font-weight: 720; letter-spacing: -.065em; margin: .2rem 0 1rem; line-height: 1.12;}
 .st-key-home_hero .aivle-home-wordmark span {color: var(--primary-color);}
@@ -71,14 +63,12 @@ st.markdown("""<style>
 .st-key-aivle_fortune_line .aivle-fortune-title {font-size: .78rem; font-weight: 650; margin: 0 0 .25rem; color: var(--primary-color);}
 .st-key-aivle_fortune_line p {font-size: .88rem; text-align:center; margin: 0;}
 @media (max-width: 640px) {.st-key-home_hero {margin-top: 2rem;} .st-key-home_hero .aivle-home-wordmark {font-size:2.65rem !important;}}
-/* One Google-style composer. Built-in plus, microphone, send share one input. */
 .st-key-home_search_row {margin: 0 auto 1.2rem; max-width: 740px;}
 .st-key-home_search_row [data-testid="stChatInput"] {
    border: 1.5px solid var(--border-color) !important; border-radius: 28px !important;
    box-shadow: 0 2px 12px color-mix(in srgb, var(--text-color) 7%, transparent);
 }
 .st-key-home_search_row [data-testid="stChatInput"] button {color: var(--text-color) !important;}
-/* High-contrast controls in both themes. Avoid pale --border-color for icon outlines. */
 .st-key-aivle_nav [data-testid="stButton"] button {
    border: 2px solid color-mix(in srgb, var(--text-color) 58%, transparent) !important;
    box-shadow: none !important;
@@ -103,12 +93,9 @@ st.markdown("""<style>
 .st-key-home_search_row [data-testid="stChatInput"] button:not(:disabled) {
    color: var(--text-color) !important; opacity: 1 !important;
 }
-/* Keep a tiny, visible custom avatar without restoring the bulky old banner. */
 .st-key-aivle_brand [data-testid="stImage"] img {border-radius: 6px; border: 1px solid color-mix(in srgb, var(--text-color) 40%, transparent); object-fit: cover;}
 .st-key-aivle_cheer_bubble {position: relative; border-radius: 16px; background: var(--secondary-background-color);}
 .st-key-aivle_cheer_bubble:before {content: ""; position:absolute; left:-7px; top:44%; width:12px; height:12px; transform:rotate(45deg); background: var(--secondary-background-color); border-left:1px solid var(--border-color); border-bottom:1px solid var(--border-color);}
-/* The settings accordion, upload dropzone, popovers and inputs inherit the native theme. */
-/* Calendar is custom HTML, so it must explicitly use native theme variables. */
 .aivle-calendar {width: 100%; overflow-x: auto;}
 .aivle-calendar table {width: 100%; min-width: 460px; table-layout: fixed;
     border-collapse: separate; border-spacing: 4px;}
@@ -257,7 +244,6 @@ def show_meeting_cheer():
 
 
 with st.sidebar:
-    # ── [요청사항] 사이드바 최상단 "AIVLE Ⅺ" 왼쪽에 작고 네모난 프로필 배치 ──
     with st.container(key='aivle_brand'):
         brand_avatar, brand_title = st.columns([1, 4], vertical_alignment='center', gap='small')
         with brand_avatar:
@@ -301,7 +287,6 @@ with st.sidebar:
     st.divider()
     st.caption(f'미완료 업무 {sum(t.get("status") != "완료" for t in st.session_state.tasks)}건 · 저장된 회의 {len(st.session_state.meeting_archive)}건')
     
-    # ── 설정 영역 (마스코트 설정 제거, 프로필 관리 기능만 남김) ──
     with st.expander('⚙️ 설정', expanded=False):
         st.caption('🎨 화면 테마: 오른쪽 위 ⋮ 메뉴 → Settings → Theme에서 Light / Dark를 선택하세요.')
         st.markdown('**내 프로필 사진 관리**')
@@ -718,7 +703,7 @@ elif page == '할 일':
                 right.selectbox('진행 상태', STATUSES, key=status_key, on_change=update_status, args=(task['id'],))
                 st.markdown('**세부 할 일**')
                 steps = description_to_checklist(task.get('description'))
-                task_ref = next((x for x in st.session_state.tasks if x.get('id'] == task['id']), None)
+                task_ref = next((x for x in st.session_state.tasks if x.get('id') == task['id']), None)
                 if task_ref is not None:
                     checked = (list(task_ref.get('todo_done', [])) + [False] * len(steps))[:len(steps)]
                     for i, item in enumerate(steps):
