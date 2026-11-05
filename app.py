@@ -151,6 +151,8 @@ DEFAULTS = {
     'meeting_transcript': '', 'meeting_archive': [], 'active_meeting_id': None,
     'calendar_events': [], 'calendar_selected': None, 'calendar_offset': 0,
     'meeting_cheer': None,
+    'user_profile_image': None,      # 👈 [추가] 내 프로필 사진 바이너리 데이터
+    'profile_upload_version': 0,     # 👈 [추가] 업소용 업로더 초기화 버전
 }
 for key, value in DEFAULTS.items():
     if key not in st.session_state:
@@ -314,6 +316,43 @@ with st.sidebar:
     with st.expander('⚙️ 설정', expanded=False):
         st.caption('🎨 화면 테마: 오른쪽 위 ⋮ 메뉴 → Settings → Theme에서 Light / Dark를 선택하세요. 앱 전체 위젯에 동일하게 적용됩니다.')
         st.markdown('**내 마스코트**')
+        st.divider()
+        st.markdown('**내 프로필 사진**')
+        st.caption('앱 내에서 사용할 본인의 프로필 사진을 등록하세요.')
+        
+        profile_upload = st.file_uploader(
+            '프로필 사진 선택 (PNG / JPG)', 
+            type=['png', 'jpg', 'jpeg'],
+            key=f"user_profile_upload_{st.session_state.get('profile_upload_version', 0)}",
+            max_upload_size=3,
+            help='최대 3MB · 세션에만 저장'
+        )
+        
+        if profile_upload is not None:
+            try:
+                profile_data = profile_upload.getvalue()
+                if len(profile_data) > 3_000_000:
+                    raise ValueError('이미지는 3MB 이하여야 합니다.')
+                with Image.open(io.BytesIO(profile_data)) as check_img:
+                    if check_img.format not in ('PNG', 'JPEG'):
+                        raise ValueError('PNG 또는 JPG 이미지만 지원합니다.')
+                    check_img.verify()
+                st.session_state.user_profile_image = profile_data
+                st.rerun()
+            except (OSError, ValueError, UnidentifiedImageError) as exc:
+                st.error('프로필 이미지 오류: ' + str(exc)[:120])
+                
+        if st.session_state.user_profile_image is not None:
+            col_p1, col_p2 = st.columns([1, 2], vertical_alignment='center')
+            with col_p1:
+                st.image(st.session_state.user_profile_image, width=50)
+            with col_p2:
+                if st.button('프로필 사진 삭제', key='reset_profile_img', use_container_width=True):
+                    st.session_state.user_profile_image = None
+                    st.session_state.profile_upload_version += 1
+                    st.rerun()
+        else:
+            st.caption('등록된 프로필 사진이 없습니다.')
         st.caption('이미지를 선택하면 사이드바 로고와 홈에 작은 아바타로 표시돼요. 기본 홈은 텍스트 중심으로 유지됩니다.')
         mascot_upload = st.file_uploader('이미지 선택 (PNG / JPG)', type=['png', 'jpg', 'jpeg'],
                                          key=f'user_mascot_upload_{st.session_state.mascot_upload_version}',
