@@ -31,12 +31,6 @@ SIDE_IMAGE = ASSET_DIR / 'assistant_side.png'
 # Streamlit 공식 테마를 단일 진실 공급원으로 사용합니다.
 # 앱의 오른쪽 위 메뉴 → Settings → Theme에서 Light / Dark를 전환합니다.
 # 고정된 다크 색상이나 CSS 기반 가짜 테마 전환은 기본 위젯과 충돌합니다.
-if 'custom_mascot' not in st.session_state:
-    st.session_state.custom_mascot = None
-if 'mascot_upload_version' not in st.session_state:
-    st.session_state.mascot_upload_version = 0
-if 'mascot_digest' not in st.session_state:
-    st.session_state.mascot_digest = None
 
 st.markdown("""<style>
 /* AIVLE Ⅺ: native Streamlit theme colors, no hardcoded light/dark surface colors. */
@@ -110,9 +104,7 @@ st.markdown("""<style>
    color: var(--text-color) !important; opacity: 1 !important;
 }
 /* Keep a tiny, visible custom avatar without restoring the bulky old banner. */
-.st-key-aivle_brand [data-testid="stImage"] img {border-radius: 12px; border: 2px solid color-mix(in srgb, var(--text-color) 55%, transparent); object-fit: cover;}
-.st-key-home_avatar [data-testid="stImage"] {display: flex; justify-content: center;}
-.st-key-home_avatar img {border-radius: 50%; border: 2px solid color-mix(in srgb, var(--text-color) 55%, transparent); object-fit: cover;}
+.st-key-aivle_brand [data-testid="stImage"] img {border-radius: 6px; border: 1px solid color-mix(in srgb, var(--text-color) 40%, transparent); object-fit: cover;}
 .st-key-aivle_cheer_bubble {position: relative; border-radius: 16px; background: var(--secondary-background-color);}
 .st-key-aivle_cheer_bubble:before {content: ""; position:absolute; left:-7px; top:44%; width:12px; height:12px; transform:rotate(45deg); background: var(--secondary-background-color); border-left:1px solid var(--border-color); border-bottom:1px solid var(--border-color);}
 /* The settings accordion, upload dropzone, popovers and inputs inherit the native theme. */
@@ -139,10 +131,6 @@ st.markdown("""<style>
 }
 </style>""", unsafe_allow_html=True)
 
-def current_mascot(default_file):
-    """Only in-memory bytes, never shared between sessions."""
-    return st.session_state.custom_mascot or (str(default_file) if default_file.is_file() else None)
-
 DEFAULTS = {
     'analysis': None, 'tasks': [], 'messages': [], 'pending_email': None,
     'brief_audio': None, 'brief_audio_for': None, 'last_chat_audio': None,
@@ -151,8 +139,8 @@ DEFAULTS = {
     'meeting_transcript': '', 'meeting_archive': [], 'active_meeting_id': None,
     'calendar_events': [], 'calendar_selected': None, 'calendar_offset': 0,
     'meeting_cheer': None,
-    'user_profile_image': None,      # 👈 [추가] 내 프로필 사진 바이너리 데이터
-    'profile_upload_version': 0,     # 👈 [추가] 업소용 업로더 초기화 버전
+    'user_profile_image': None,
+    'profile_upload_version': 0,
 }
 for key, value in DEFAULTS.items():
     if key not in st.session_state:
@@ -213,9 +201,7 @@ def format_problem(exc):
     return f'요청 처리 실패 ({name}). 앱 로그를 확인하세요.'
 
 
-
 def description_to_checklist(description):
-    """Convert explicit list lines to checkboxes; don't fabricate subtasks."""
     lines = [re.sub(r'^\s*(?:[-*•]\s*|\d+[.)]\s*)', '', x).strip()
              for x in (description or '').splitlines()]
     lines = [x for x in lines if x]
@@ -231,7 +217,6 @@ def toggle_subtask(task_id, index):
     checks = (checks + [False] * len(lines))[:len(lines)]
     checks[index] = bool(st.session_state[f"todo_{st.session_state.active_meeting_id or 'current'}_{task_id}_{index}"])
     task['todo_done'] = checks
-    # Existing status control remains available; auto-promote to completed when all checked.
     if all(checks):
         task['status'] = '완료'
     elif task.get('status') == '완료':
@@ -261,7 +246,6 @@ CHEER_LINES = [
 
 
 def show_meeting_cheer():
-    """Small centered, light-hearted fortune under the text logo (no image)."""
     if st.session_state.meeting_cheer is None:
         st.session_state.meeting_cheer = secrets.choice(CHEER_LINES)
     with st.container(key='aivle_fortune_line'):
@@ -269,23 +253,27 @@ def show_meeting_cheer():
             '<p class="aivle-fortune-title">🍀 오늘의 운세</p>',
             unsafe_allow_html=True,
         )
-        # Native text widget respects dark/light theme without hard-coded colors.
         st.markdown(st.session_state.meeting_cheer)
 
 
 with st.sidebar:
-    # 기본 상태는 텍스트만 표시하고, 사용자가 이미지를 지정한 경우에만 작게 노출합니다.
+    # ── [요청사항] 사이드바 최상단 "AIVLE Ⅺ" 왼쪽에 작고 네모난 프로필 배치 ──
     with st.container(key='aivle_brand'):
-        if st.session_state.custom_mascot is not None:
-            brand_avatar, brand_title = st.columns([1, 4], vertical_alignment='center', gap='small')
-            with brand_avatar:
-                st.image(st.session_state.custom_mascot, width=42)
-            with brand_title:
-                st.markdown('**AIVLE Ⅺ**')
-        else:
+        brand_avatar, brand_title = st.columns([1, 4], vertical_alignment='center', gap='small')
+        with brand_avatar:
+            if st.session_state.user_profile_image is not None:
+                try:
+                    img = Image.open(io.BytesIO(st.session_state.user_profile_image))
+                    st.image(img, width=32)
+                except Exception:
+                    st.markdown("👤")
+            else:
+                st.markdown("👤")
+        with brand_title:
             st.markdown('**AIVLE Ⅺ**')
+
     st.divider()
-    # 단색 Material 아이콘은 테마와 함께 색이 바뀌어 이모지 색상 불일치를 방지합니다.
+
     menu_icons = [
         ('홈', ':material/home:'),
         ('회의록', ':material/folder_open:'),
@@ -293,7 +281,6 @@ with st.sidebar:
         ('할 일', ':material/checklist:'),
         ('브리핑', ':material/assignment:'),
     ]
-    # 배포 전 열어둔 세션의 이전 메뉴명도 자연스럽게 새 메뉴로 이동합니다.
     legacy_pages = {
         '회의 통합 분석': '홈', 'AI 비서 대화': '홈',
         '회의 기록': '회의록', '담당 업무': '할 일',
@@ -313,12 +300,12 @@ with st.sidebar:
     page = st.session_state.active_page
     st.divider()
     st.caption(f'미완료 업무 {sum(t.get("status") != "완료" for t in st.session_state.tasks)}건 · 저장된 회의 {len(st.session_state.meeting_archive)}건')
+    
+    # ── 설정 영역 (마스코트 설정 제거, 프로필 관리 기능만 남김) ──
     with st.expander('⚙️ 설정', expanded=False):
-        st.caption('🎨 화면 테마: 오른쪽 위 ⋮ 메뉴 → Settings → Theme에서 Light / Dark를 선택하세요. 앱 전체 위젯에 동일하게 적용됩니다.')
-        st.markdown('**내 마스코트**')
-        st.divider()
-        st.markdown('**내 프로필 사진**')
-        st.caption('앱 내에서 사용할 본인의 프로필 사진을 등록하세요.')
+        st.caption('🎨 화면 테마: 오른쪽 위 ⋮ 메뉴 → Settings → Theme에서 Light / Dark를 선택하세요.')
+        st.markdown('**내 프로필 사진 관리**')
+        st.caption('사이드바 상단에 표시될 본인의 프로필 사진을 등록하세요.')
         
         profile_upload = st.file_uploader(
             '프로필 사진 선택 (PNG / JPG)', 
@@ -345,7 +332,7 @@ with st.sidebar:
         if st.session_state.user_profile_image is not None:
             col_p1, col_p2 = st.columns([1, 2], vertical_alignment='center')
             with col_p1:
-                st.image(st.session_state.user_profile_image, width=50)
+                st.image(st.session_state.user_profile_image, width=42)
             with col_p2:
                 if st.button('프로필 사진 삭제', key='reset_profile_img', use_container_width=True):
                     st.session_state.user_profile_image = None
@@ -353,35 +340,8 @@ with st.sidebar:
                     st.rerun()
         else:
             st.caption('등록된 프로필 사진이 없습니다.')
-        st.caption('이미지를 선택하면 사이드바 로고와 홈에 작은 아바타로 표시돼요. 기본 홈은 텍스트 중심으로 유지됩니다.')
-        mascot_upload = st.file_uploader('이미지 선택 (PNG / JPG)', type=['png', 'jpg', 'jpeg'],
-                                         key=f'user_mascot_upload_{st.session_state.mascot_upload_version}',
-                                         max_upload_size=3, help='최대 3MB · 로그인 없이 이 세션에만 저장')
-        if mascot_upload is not None:
-            try:
-                mascot_data = mascot_upload.getvalue()
-                if len(mascot_data) > 3_000_000:
-                    raise ValueError('이미지는 3MB 이하여야 합니다.')
-                with Image.open(io.BytesIO(mascot_data)) as check_img:
-                    if check_img.format not in ('PNG', 'JPEG'):
-                        raise ValueError('PNG 또는 JPG 이미지만 지원합니다.')
-                    check_img.verify()
-                mascot_digest = hashlib.sha256(mascot_data).hexdigest()
-                if mascot_digest != st.session_state.mascot_digest:
-                    st.session_state.custom_mascot = mascot_data
-                    st.session_state.mascot_digest = mascot_digest
-                    st.rerun()
-            except (OSError, ValueError, UnidentifiedImageError) as exc:
-                st.error('마스코트 이미지 오류: ' + str(exc)[:120])
-        if st.session_state.custom_mascot is not None:
-            st.image(st.session_state.custom_mascot, width=100, caption='현재 적용된 개인 마스코트')
-            if st.button('기본 이미지 설정으로 복원', key='reset_personal_mascot', use_container_width=True):
-                st.session_state.custom_mascot = None
-                st.session_state.mascot_digest = None
-                st.session_state.mascot_upload_version += 1
-                st.rerun()
-        else:
-            st.caption('현재 기본 로고(텍스트)를 사용 중입니다.')
+
+        st.divider()
         st.text_input('담당자 이름', key='owner', help='회의록의 담당자 표기와 같게 입력하세요.')
         st.caption(f'기준일 {today.isoformat()} · 한국 시간')
         st.toggle('AI 답변 자동 음성 생성', key='auto_voice', help='답변마다 TTS API를 호출하므로 비용이 추가됩니다.')
@@ -400,7 +360,6 @@ with st.sidebar:
             st.rerun()
     st.caption('회의·일정은 현재 세션에 저장됩니다. 영구 보관은 [회의록]에서 JSON 백업을 사용하세요.')
 
-# 메인 영역은 선택된 페이지 하나만 표시합니다.
 page_kicker = {
     '회의록': 'MEETING ARCHIVE',
     '캘린더': 'CALENDAR',
@@ -410,10 +369,6 @@ page_kicker = {
 if page == '홈':
     with st.container(key='home_hero'):
         st.markdown('<h1 class="aivle-home-wordmark">AIVLE <span>Ⅺ</span></h1>', unsafe_allow_html=True)
-        # 기본 홈은 텍스트 중심. 개인화한 경우에만 작게 아바타를 보여줘 실제 변경 결과를 확인할 수 있습니다.
-        if st.session_state.custom_mascot is not None:
-            with st.container(key='home_avatar'):
-                st.image(st.session_state.custom_mascot, width=58)
         st.markdown('<p class="home_tagline">회의부터 일정까지, 무엇이든 도와드릴게요.</p>', unsafe_allow_html=True)
         show_meeting_cheer()
 else:
@@ -421,8 +376,6 @@ else:
     st.title(page)
 
 if page == '홈':
-    # One composer for typed chat, audio questions and multimodal meeting uploads.
-    # Streamlit 1.55+ provides native + (files), microphone and send controls.
     with st.container(key='home_search_row'):
         home_submission = st.chat_input(
             '궁금한 것을 입력하세요', key='home_unified_composer',
@@ -437,7 +390,6 @@ if page == '홈':
         attached_files = list(home_submission.files or [])
         recorded_voice = home_submission.audio
         if attached_files:
-            # Any attached file means meeting analysis. The optional text is the analysis request.
             text_files = [f for f in attached_files if f.name.lower().endswith('.txt')]
             image_files = [f for f in attached_files if f.name.lower().endswith(('.png', '.jpg', '.jpeg'))]
             sound_files = [f for f in attached_files if f.name.lower().endswith(('.mp3', '.m4a', '.mp4', '.mpeg', '.mpga', '.wav', '.webm'))]
@@ -600,9 +552,9 @@ elif page == '회의록':
             conflicts = info.get('conflicts', []) or []
             with st.container(border=True):
                 st.markdown('### 📑 ' + str(record.get('title') or '제목 없는 회의'))
-                st.caption(f"🗓️ 회의일: {record.get('meeting_date') or '미상'}　·　💾 저장: {str(record.get('saved_at',''))[:16].replace('T',' ')}")
+                st.caption(f"🗓️ 회의일: {record.get('meeting_date') or '미상'} · 💾 저장: {str(record.get('saved_at',''))[:16].replace('T',' ')}")
                 st.write(info.get('summary') or '요약이 없습니다.')
-                st.caption(f'✅ 결정 {len(decisions)}건　 |　📋 업무 {len(tasks)}건　 |　⏳ 미완료 {len(pending)}건　 |　⚠️ 확인 필요 {len(conflicts)}건')
+                st.caption(f'✅ 결정 {len(decisions)}건  | 📋 업무 {len(tasks)}건  | ⏳ 미완료 {len(pending)}건  | ⚠️ 확인 필요 {len(conflicts)}건')
                 if decisions:
                     st.markdown('**✅ 주요 결정사항**')
                     for decision in decisions[:3]:
@@ -681,7 +633,6 @@ elif page == '캘린더':
                 {'title': add_title, 'date': add_day.isoformat(),
                  'time': add_time.strftime('%H:%M') if add_timed else '', 'note': add_note}
             )
-            # 선택한 날짜와 월간 달력의 표시 월을 새 일정이 있는 달로 이동합니다.
             st.session_state.calendar_offset = (add_day.year - today.year) * 12 + add_day.month - today.month
             st.session_state.cal_pending_date = add_day
             st.session_state.calendar_notice = f'✅ {add_day.isoformat()} · {add_title.strip()} 일정이 등록됐습니다.'
@@ -767,7 +718,7 @@ elif page == '할 일':
                 right.selectbox('진행 상태', STATUSES, key=status_key, on_change=update_status, args=(task['id'],))
                 st.markdown('**세부 할 일**')
                 steps = description_to_checklist(task.get('description'))
-                task_ref = next((x for x in st.session_state.tasks if x.get('id') == task['id']), None)
+                task_ref = next((x for x in st.session_state.tasks if x.get('id'] == task['id']), None)
                 if task_ref is not None:
                     checked = (list(task_ref.get('todo_done', [])) + [False] * len(steps))[:len(steps)]
                     for i, item in enumerate(steps):
@@ -855,7 +806,6 @@ if page == '홈':
             st.session_state.messages.extend([{'role': 'user', 'content': question}, {'role': 'assistant', 'content': answer}])
             st.session_state.messages = st.session_state.messages[-20:]
             st.session_state.last_chat_reply = answer
-            # 자동 TTS는 설정에서 사용자가 명시적으로 켠 경우에만 호출합니다.
             if st.session_state.auto_voice and not answer.startswith('답변 생성 실패:'):
                 try:
                     with st.spinner('답변 음성 생성 중...'):
@@ -891,9 +841,7 @@ if page == '홈':
             else:
                 st.caption('아직 생성된 음성 파일이 없습니다. 위 버튼을 눌러 주세요.')
 
-# 이메일 기능은 삭제하지 않고 접힌 사이드바 메뉴로 이동합니다.
 with st.sidebar:
-    # 이메일은 AI와 독립적으로 처리하며 반드시 사용자 최종 확인이 있어야 발송합니다.
     with st.expander('✉️ 이메일 공유', expanded=bool(st.session_state.pending_email)):
         if not st.session_state.analysis:
             st.info('회의 분석이 완료되면 이메일 공유가 활성화됩니다.')
