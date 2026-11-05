@@ -1,4 +1,4 @@
-"""에이블 설정: 실제 비밀값은 환경변수 또는 Streamlit Secrets에서만 읽습니다."""
+"""AIVLE Ⅺ 설정: 실제 비밀값은 환경변수 또는 Streamlit Secrets에서만 읽습니다."""
 import os
 import streamlit as st
 

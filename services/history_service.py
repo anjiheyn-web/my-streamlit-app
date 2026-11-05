@@ -47,7 +47,7 @@ def import_backup(data, include_events=False):
         raise ValueError('4MB 이하의 유효한 JSON 백업을 선택해 주세요.')
     payload = json.loads(data.decode('utf-8-sig'))
     if not isinstance(payload, dict) or payload.get('format') != 'aivle_meeting_archive' or payload.get('version') != 1:
-        raise ValueError('에이블 회의 백업 형식이 아닙니다.')
+        raise ValueError('AIVLE Ⅺ 회의 백업 형식이 아닙니다.')
     records = payload.get('records', [])
     messages = payload.get('messages', [])
     if not isinstance(records, list) or not isinstance(messages, list) or len(records) > MAX_RECORDS or len(messages) > 20:

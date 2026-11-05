@@ -1,6 +1,7 @@
-"""에이블 캘린더: 직접 등록한 일정과 회의에서 추출한 마감일 통합."""
+"""AIVLE Ⅺ 캘린더: 직접 등록한 일정과 회의에서 추출한 마감일 통합."""
 import calendar
 from collections import Counter
+from collections import defaultdict
 from datetime import date, datetime
 from html import escape
 from uuid import uuid4
@@ -78,13 +79,20 @@ def entries_for_day(events, deadlines, selected):
 
 
 def month_html(year, month, events, deadlines, today=None):
-    """가벼운 비대화형 월간 달력. 세부 날짜는 Streamlit date_input으로 선택."""
+    """월간 달력에 직접 등록 일정 제목을 안전하게 출력합니다.
+
+    최대 두 개의 직접 등록 일정을 날짜마다 표시하고, 나머지는 개수로 표시합니다.
+    HTML 이스케이프를 적용하므로 사용자가 입력한 문자도 안전합니다.
+    """
     today = today or date.today()
-    counts = Counter(x['date'] for x in events)
+    by_day = defaultdict(list)
+    for event in sorted(events, key=lambda x: (x.get('date', ''), x.get('time', ''), x.get('title', ''))):
+        if event.get('date') and event.get('title'):
+            by_day[event['date']].append(event)
     due_counts = Counter(x['date'] for x in deadlines if x.get('status') != '완료')
-    rows = calendar.Calendar(firstweekday=6).monthdatescalendar(year,month)
+    rows = calendar.Calendar(firstweekday=6).monthdatescalendar(year, month)
     output = ['<div class="aivle-calendar"><table><thead><tr>']
-    for name in ['일','월','화','수','목','금','토']:
+    for name in ['일', '월', '화', '수', '목', '금', '토']:
         output.append(f'<th>{name}</th>')
     output.append('</tr></thead><tbody>')
     for week in rows:
@@ -92,11 +100,21 @@ def month_html(year, month, events, deadlines, today=None):
         for day in week:
             iso = day.isoformat()
             classes = 'other' if day.month != month else ''
-            if day == today:classes += ' today'
-            dots = []
-            if counts[iso]: dots.append(f'<span class="event-dot">일정 {counts[iso]}</span>')
-            if due_counts[iso]: dots.append(f'<span class="task-dot">마감 {due_counts[iso]}</span>')
-            output.append(f'<td class="{classes}"><div class="day-number">{day.day}</div>{"".join(dots)}</td>')
+            if day == today:
+                classes += ' today'
+            items = []
+            if day.month == month:
+                scheduled = by_day.get(iso, [])
+                for event in scheduled[:2]:
+                    event_title = escape(str(event['title']), quote=True)
+                    event_time = escape(str(event.get('time') or ''), quote=True)
+                    label = f'{event_time} {event_title}'.strip()
+                    items.append(f'<span class="event-dot" title="{label}">🗓 {label}</span>')
+                if len(scheduled) > 2:
+                    items.append(f'<span class="more-events">+{len(scheduled)-2}개 일정</span>')
+                if due_counts[iso]:
+                    items.append(f'<span class="task-dot">📌 업무 마감 {due_counts[iso]}건</span>')
+            output.append(f'<td class="{classes}"><div class="day-number">{day.day}</div>{"".join(items)}</td>')
         output.append('</tr>')
     output.append('</tbody></table></div>')
     return ''.join(output)
